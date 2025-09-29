@@ -4,9 +4,9 @@ OOPSportsUI$1.class
 Ball.class
 LogEntry.class
 LogRow.class
+Equipment.class
 AuditService.class
 BorrowService.class
-Equipment.class
 Racket.class
 TxRow.class
 EquipmentRow.class

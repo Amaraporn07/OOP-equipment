@@ -10,6 +10,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import javafx.scene.control.TableColumnBase; // << เพิ่มสำหรับ helper
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -248,25 +249,27 @@ public class OOPSportsUI extends Application {
 
     /* ---------- seed + builders ---------- */
     private void seed(){
-        adminService.addItem("seed","Ball","บอล",10);
-        adminService.addItem("seed","Ball","บาส",10);
-        adminService.addItem("seed","Ball","ลูกขนไก่",10);
-        adminService.addItem("seed","Ball","วอลเลย์บอล",10);
-        adminService.addItem("seed","Ball","เซปักตะกร้อ",10);
+        adminService.addItem("seed","Ball","Football",10);
+        adminService.addItem("seed","Ball","Basketball",10);
+        adminService.addItem("seed","Ball","Shuttlecock",10);
+        adminService.addItem("seed","Ball","Volleyball",10);
+        adminService.addItem("seed","Ball","Sepak Takraw",10);
     }
     private void initEquipTable(){
-        TableColumn<EquipmentRow,Integer> cId = new TableColumn<>("รหัส");
+        TableColumn<EquipmentRow,Integer> cId = new TableColumn<>("Asset Code");
         cId.setCellValueFactory(new PropertyValueFactory<>("id")); cId.setPrefWidth(70);
-        TableColumn<EquipmentRow,String> cCat = new TableColumn<>("หมวด");
+        TableColumn<EquipmentRow,String> cCat = new TableColumn<>("Type");
         cCat.setCellValueFactory(new PropertyValueFactory<>("category")); cCat.setPrefWidth(110);
-        TableColumn<EquipmentRow,String> cName = new TableColumn<>("อุปกรณ์");
+        TableColumn<EquipmentRow,String> cName = new TableColumn<>("Equipment");
         cName.setCellValueFactory(new PropertyValueFactory<>("name")); cName.setPrefWidth(300);
-        TableColumn<EquipmentRow,Integer> cTotal = new TableColumn<>("รวม");
+        TableColumn<EquipmentRow,Integer> cTotal = new TableColumn<>("Total");
         cTotal.setCellValueFactory(new PropertyValueFactory<>("total")); cTotal.setPrefWidth(80);
-        TableColumn<EquipmentRow,Integer> cAvail = new TableColumn<>("คงเหลือ");
+        TableColumn<EquipmentRow,Integer> cAvail = new TableColumn<>("Remaining ");
         cAvail.setCellValueFactory(new PropertyValueFactory<>("available")); cAvail.setPrefWidth(90);
         tableEquip.getColumns().setAll(cId,cCat,cName,cTotal,cAvail);
-        tableEquip.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+
+        // เดิม: FLEX_LAST_COLUMN (JavaFX 21+) -> ใช้ helper แทน
+        makeLastColumnFlex(tableEquip, cName);
     }
     private void initLogTable(){
         TableColumn<LogRow,String> cTime = new TableColumn<>("เวลา");
@@ -282,6 +285,9 @@ public class OOPSportsUI extends Application {
         TableColumn<LogRow,String> cNote = new TableColumn<>("หมายเหตุ");
         cNote.setCellValueFactory(new PropertyValueFactory<>("note"));
         tableLog.getColumns().setAll(cTime,cType,cActor,cItem,cQty,cNote);
+
+        // ตารางนี้ไม่จำเป็นต้อง flex คอลัมน์สุดท้าย แต่ถ้าต้องการ:
+        // makeLastColumnFlex(tableLog, cNote);
     }
     private void initTxTable(){
         TableColumn<TxRow,String> cSid = new TableColumn<>("student ID");
@@ -295,7 +301,9 @@ public class OOPSportsUI extends Application {
         TableColumn<TxRow,String> cR = new TableColumn<>("Return Date");
         cR.setCellValueFactory(new PropertyValueFactory<>("returnAt")); cR.setPrefWidth(180);
         tableTx.getColumns().setAll(cSid,cItem,cQty,cB,cR);
-        tableTx.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+
+        // เดิม: FLEX_LAST_COLUMN -> helper
+        makeLastColumnFlex(tableTx, cR);
     }
     private void initManageTable(){
         TableColumn<EquipmentRow,Integer> cCode = new TableColumn<>("Asset Code");
@@ -329,7 +337,9 @@ public class OOPSportsUI extends Application {
         cDel.setPrefWidth(120);
 
         manageTable.getColumns().setAll(cCode, cName, cQty, cAvail, cDel);
-        manageTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+
+        // เดิม: FLEX_LAST_COLUMN -> helper (จะเลือกยืด cDel หรือ cName ก็ได้)
+        makeLastColumnFlex(manageTable, cName);
     }
 
     /* ---------- refreshers ---------- */
@@ -345,6 +355,22 @@ public class OOPSportsUI extends Application {
         var mapped = adminService.logs().stream().map(LogRow::new).toList();
         logRows.setAll(mapped);
         tableLog.refresh();
+    }
+
+    // ==== Helper แทน FLEX_LAST_COLUMN ของ JavaFX 21+ ====
+    private static <S> void makeLastColumnFlex(TableView<S> table, TableColumn<S, ?> lastCol) {
+        lastCol.setMinWidth(80);
+        lastCol.setMaxWidth(Double.MAX_VALUE);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.widthProperty().addListener((obs, oldW, newW) -> {
+            double other = table.getColumns().stream()
+                    .filter(c -> c != lastCol)
+                    .mapToDouble(TableColumnBase::getWidth)
+                    .sum();
+            double padding = 18; // กันขอบ/สกอร์บาร์
+            double w = Math.max(lastCol.getMinWidth(), newW.doubleValue() - other - padding);
+            lastCol.setPrefWidth(w);
+        });
     }
 
     @Override public void start(Stage stage){
@@ -373,20 +399,20 @@ public class OOPSportsUI extends Application {
 
     /* ========== แท็บ 1: ยืม/คืนอุปกรณ์ ========== */
     private Tab borrowTab(){
-        Tab t = new Tab("ยืม/คืนอุปกรณ์");
+        Tab t = new Tab("Equipment Loan/Return");
         VBox box = new VBox(12); box.setPadding(new Insets(12));
 
-        TextField tfActor = new TextField(); tfActor.setPromptText("student ID / ผู้ใช้");
-        TextField tfSearch = new TextField(); tfSearch.setPromptText("ค้นหาอุปกรณ์ (เว้นว่าง = ทั้งหมด)");
-        Button btnSearch = new Button("ค้นหา");
+        TextField tfActor = new TextField(); tfActor.setPromptText("student ID ");
+        TextField tfSearch = new TextField(); tfSearch.setPromptText("Search for Equipment");
+        Button btnSearch = new Button("Search");
         btnSearch.setOnAction(e -> refreshEquipTable(tfSearch.getText()));
 
         HBox searchRow = new HBox(8, tfActor, tfSearch, btnSearch);
 
         // Borrow
-        TextField tfBid = new TextField(); tfBid.setPromptText("รหัสอุปกรณ์");
-        TextField tfBqty = new TextField(); tfBqty.setPromptText("จำนวน");
-        Button btnBorrow = new Button("ยืม");
+        TextField tfBid = new TextField(); tfBid.setPromptText("Equipment Code");
+        TextField tfBqty = new TextField(); tfBqty.setPromptText("Quantity");
+        Button btnBorrow = new Button("Borrow");
         Label lbBorrow = new Label();
         btnBorrow.setOnAction(e -> {
             var actor = tfActor.getText().isBlank() ? "user" : tfActor.getText().trim();
@@ -395,18 +421,18 @@ public class OOPSportsUI extends Application {
                 int q  = Integer.parseInt(tfBqty.getText().trim());
                 String msg = borrowService.borrow(actor,id,q);
                 lbBorrow.setText(msg);
-                if (!msg.startsWith("ยืมไม่ได้") && !msg.startsWith("ไม่พบ")) {
+                if (!msg.startsWith("Cannot Borrow") && !msg.startsWith("Not Found")) {
                     String itemName = borrowService.findItemName(id).orElse("#"+id);
                     addBorrowRecord(actor, itemName, q, LocalDateTime.now());
                 }
                 refreshEquipTable(tfSearch.getText()); refreshLogTable();
-            }catch(Exception ex){ lbBorrow.setText("กรุณากรอกตัวเลขให้ถูกต้อง"); }
+            }catch(Exception ex){ lbBorrow.setText("Please enter a valid number."); }
         });
 
         // Return
-        TextField tfRid = new TextField(); tfRid.setPromptText("รหัสอุปกรณ์");
-        TextField tfRqty = new TextField(); tfRqty.setPromptText("จำนวน");
-        Button btnReturn = new Button("คืน");
+        TextField tfRid = new TextField(); tfRid.setPromptText("Equipment Code");
+        TextField tfRqty = new TextField(); tfRqty.setPromptText("Quantity");
+        Button btnReturn = new Button("Return");
         Label lbReturn = new Label();
         btnReturn.setOnAction(e -> {
             var actor = tfActor.getText().isBlank() ? "user" : tfActor.getText().trim();
@@ -415,20 +441,20 @@ public class OOPSportsUI extends Application {
                 int q  = Integer.parseInt(tfRqty.getText().trim());
                 String msg = borrowService.giveBack(actor,id,q);
                 lbReturn.setText(msg);
-                if (msg.startsWith("คืนสำเร็จ")) {
+                if (msg.startsWith("Return Successful")) {
                     String itemName = borrowService.findItemName(id).orElse("#"+id);
                     closeBorrowRecords(actor, itemName, q, LocalDateTime.now());
                 }
                 refreshEquipTable(tfSearch.getText()); refreshLogTable();
-            }catch(Exception ex){ lbReturn.setText("กรุณากรอกตัวเลขให้ถูกต้อง"); }
+            }catch(Exception ex){ lbReturn.setText("Please enter a valid number."); }
         });
 
         StackPane tableArea = new StackPane(tableEquip);
 
         GridPane forms = new GridPane();
         forms.setHgap(8); forms.setVgap(8);
-        forms.addRow(0, new Label("ยืม:"), tfBid, tfBqty, btnBorrow, lbBorrow);
-        forms.addRow(1, new Label("คืน:"), tfRid, tfRqty, btnReturn, lbReturn);
+        forms.addRow(0, new Label("Borrow:"), tfBid, tfBqty, btnBorrow, lbBorrow);
+        forms.addRow(1, new Label("Return:"), tfRid, tfRqty, btnReturn, lbReturn);
 
         box.getChildren().addAll(searchRow, tableArea, forms);
         t.setContent(box);
@@ -437,25 +463,25 @@ public class OOPSportsUI extends Application {
 
     /* ========== แท็บ 2: จัดการอุปกรณ์กีฬา (UI ตามรูป) ========== */
     private Tab manageTab(){
-        Tab t = new Tab("จัดการอุปกรณ์กีฬา");
+        Tab t = new Tab("Sports Equipment Management");
         VBox box = new VBox(12); box.setPadding(new Insets(12));
 
-        TextField tfSearch = new TextField(); tfSearch.setPromptText("บอล");
-        Button btnFind = new Button("ค้นหา");
+        TextField tfSearch = new TextField(); tfSearch.setPromptText("Equipment Name");
+        Button btnFind = new Button("Search");
         btnFind.setOnAction(e -> refreshEquipTable(tfSearch.getText()));
 
-        TextField tfNew = new TextField(); tfNew.setPromptText("เพิ่มรายการ");
+        TextField tfNew = new TextField(); tfNew.setPromptText("Add New");
         Spinner<Integer> spQty = new Spinner<>(1, 9999, 10);
-        Button btnAdd = new Button("+ เพิ่ม");
+        Button btnAdd = new Button("+ Increase");
 
         Label lbMsg = new Label();
 
         btnAdd.setOnAction(e -> {
             String name = tfNew.getText()==null? "" : tfNew.getText().trim();
             int qty = spQty.getValue();
-            if (name.isBlank()){ lbMsg.setText("กรอกชื่ออุปกรณ์ก่อน"); return; }
+            if (name.isBlank()){ lbMsg.setText("Please enter the equipment name first."); return; }
             adminService.addItem("admin", "Ball", name, qty); // ใช้ Ball เป็นชนิดเริ่มต้น
-            lbMsg.setText("เพิ่มแล้ว: "+name+" ("+qty+")");
+            lbMsg.setText("Added: "+name+" ("+qty+")");
             tfNew.clear(); spQty.getValueFactory().setValue(10);
             refreshEquipTable(currentManageKeyword);
             refreshLogTable();
@@ -470,19 +496,19 @@ public class OOPSportsUI extends Application {
 
     /* ========== แท็บ 3: บันทึกการยืม-คืน ========== */
     private Tab recordTab(){
-        Tab t = new Tab("บันทึกการยืม-คืน");
+        Tab t = new Tab("Loan & Return History");
         VBox box = new VBox(12); box.setPadding(new Insets(12));
 
-        TextField tfFind = new TextField(); tfFind.setPromptText("ค้นหา student ID");
-        Button btnFind = new Button("ค้นหา");
-        Button btnAll  = new Button("ดูทั้งหมด");
+        TextField tfFind = new TextField(); tfFind.setPromptText("Search student ID");
+        Button btnFind = new Button("Search");
+        Button btnAll  = new Button("View All");
         btnFind.setOnAction(e -> {
             String kw = tfFind.getText()==null? "" : tfFind.getText().trim().toLowerCase(Locale.ROOT);
             tableTx.setItems(kw.isEmpty() ? txRows : txRows.filtered(r -> r.getStudentId().toLowerCase(Locale.ROOT).contains(kw)));
         });
         btnAll.setOnAction(e -> { tableTx.setItems(txRows); tfFind.clear(); });
 
-        HBox search = new HBox(8, new Label("ค้นหารหัสนิสิต:"), tfFind, btnFind, btnAll);
+        HBox search = new HBox(8, new Label("Search student ID:"), tfFind, btnFind, btnAll);
 
         box.getChildren().addAll(search, tableTx);
         t.setContent(box);
