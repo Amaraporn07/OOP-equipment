@@ -3,7 +3,7 @@ import { test, expect } from "bun:test"
 // Run server first: bun run dev
 // Then in another terminal: bun test
 
-const BASE = "http://localhost:3000"
+const BASE = "http://127.0.0.1:3000"
 
 test("GET /api/cards returns array", async () => {
   const res = await fetch(`${BASE}/api/cards`)
