@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: Game Start Screen and Options Configuration",
+  "description": "A high-performance responsive game start viewport screen featuring an interactive controls customizer, sound levels, and a real-time action testing arena.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
